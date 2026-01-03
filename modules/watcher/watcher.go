@@ -1,6 +1,8 @@
 package watcher
 
 import (
+	"fmt"
+	"starport-assistant/modules/commands" // Access the shared logger
 	"starport-assistant/modules/storage"
 	"time"
 
@@ -12,6 +14,8 @@ import (
 
 func Start(s *discordgo.Session) {
 	ticker := time.NewTicker(4 * time.Hour)
+	commands.LogToFile("🛰️ [Watcher] Background service initialized (4h interval).")
+
 	go func() {
 		for range ticker.C {
 			PerformScan(s)
@@ -20,8 +24,11 @@ func Start(s *discordgo.Session) {
 }
 
 func PerformScan(s *discordgo.Session) {
+	commands.LogToFile("🔍 [Watcher] Beginning scheduled sector scan...")
 	data := storage.LoadData()
+
 	if !data.WatchEnabled {
+		commands.LogToFile("⚠️ [Watcher] Scan aborted: Watcher is disabled in config.")
 		return
 	}
 
@@ -34,6 +41,7 @@ func PerformScan(s *discordgo.Session) {
 		case "arcraiders":
 			patch, err := arcraiders.GetLatestArcPatch()
 			if err == nil && patch.URL != "" && patch.URL != data.LastArcPatch {
+				commands.LogToFile(fmt.Sprintf("☄️ [Watcher] New ARC Raiders update detected: %s", patch.Title))
 				data.LastArcPatch = patch.URL
 				storage.SaveData(data)
 				s.ChannelMessageSendEmbed(channelID, arcraiders.NewArcEmbed(patch))
@@ -41,8 +49,8 @@ func PerformScan(s *discordgo.Session) {
 
 		case "overwatch2":
 			patch, err := overwatch.GetLatestOWPatch()
-			// Compare Title because URL is static
 			if err == nil && patch.Title != "" && patch.Title != data.LastOWPatch {
+				commands.LogToFile(fmt.Sprintf("🚀 [Watcher] New Overwatch 2 patch detected: %s", patch.Title))
 				data.LastOWPatch = patch.Title
 				storage.SaveData(data)
 
@@ -54,4 +62,5 @@ func PerformScan(s *discordgo.Session) {
 			}
 		}
 	}
+	commands.LogToFile("✅ [Watcher] Sector scan complete.")
 }

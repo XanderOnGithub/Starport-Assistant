@@ -3,6 +3,8 @@ package commands
 import (
 	"fmt"
 	"log"
+	"os"
+	"time"
 
 	"github.com/bwmarrin/discordgo"
 )
@@ -12,24 +14,36 @@ type Command struct {
 	Handler    func(s *discordgo.Session, i *discordgo.InteractionCreate)
 }
 
-// List of slash commands
 var List []Command
-
-// Map of button/component handlers (Initialized to prevent panic)
 var ComponentHandlers = make(map[string]func(s *discordgo.Session, i *discordgo.InteractionCreate))
+
+// LogToFile appends a formatted string to starport.log
+func LogToFile(message string) {
+	f, err := os.OpenFile("starport.log", os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		log.Println("❌ Could not open log file:", err)
+		return
+	}
+	defer f.Close()
+
+	timestamp := time.Now().Format("2006-01-02 15:04:05")
+	logEntry := fmt.Sprintf("[%s] %s\n", timestamp, message)
+
+	fmt.Print(logEntry)     // Print to Terminal
+	f.WriteString(logEntry) // Save to File
+}
 
 func Add(cmd Command) {
 	List = append(List, cmd)
-	fmt.Printf("📦 [Module] Loaded command: /%s\n", cmd.Definition.Name)
+	LogToFile(fmt.Sprintf("📦 [Module] Loaded command: /%s", cmd.Definition.Name))
 }
 
-// AddComponentHandler allows modules to register button logic
 func AddComponentHandler(customID string, h func(s *discordgo.Session, i *discordgo.InteractionCreate)) {
 	ComponentHandlers[customID] = h
 }
 
 func Register(s *discordgo.Session, guildID string) {
-	fmt.Println("📡 [Registry] Synchronizing with Discord...")
+	LogToFile("📡 [Registry] Synchronizing with Discord...")
 
 	definitions := make([]*discordgo.ApplicationCommand, len(List))
 	for i, cmd := range List {
@@ -38,18 +52,22 @@ func Register(s *discordgo.Session, guildID string) {
 
 	_, err := s.ApplicationCommandBulkOverwrite(s.State.User.ID, guildID, definitions)
 	if err != nil {
-		log.Printf("❌ [Registry] Failed to register commands: %v", err)
+		LogToFile(fmt.Sprintf("❌ [Registry] Failed to register commands: %v", err))
 	} else {
-		fmt.Printf("✅ [Registry] Successfully synced %d command(s) to Discord.\n", len(List))
+		LogToFile(fmt.Sprintf("✅ [Registry] Successfully synced %d command(s) to Discord.", len(List)))
 	}
 
 	s.AddHandler(handleInteraction)
 }
 
 func handleInteraction(s *discordgo.Session, i *discordgo.InteractionCreate) {
+	user := i.Member.User.Username
+
 	// 1. Handle Slash Commands
 	if i.Type == discordgo.InteractionApplicationCommand {
 		commandName := i.ApplicationCommandData().Name
+		LogToFile(fmt.Sprintf("💬 [Command] /%s triggered by @%s", commandName, user))
+
 		for _, cmd := range List {
 			if cmd.Definition.Name == commandName {
 				cmd.Handler(s, i)
@@ -58,9 +76,11 @@ func handleInteraction(s *discordgo.Session, i *discordgo.InteractionCreate) {
 		}
 	}
 
-	// 2. Handle Button Clicks (Components)
+	// 2. Handle Button Clicks
 	if i.Type == discordgo.InteractionMessageComponent {
 		customID := i.MessageComponentData().CustomID
+		LogToFile(fmt.Sprintf("🔘 [Component] %s clicked by @%s", customID, user))
+
 		if handler, ok := ComponentHandlers[customID]; ok {
 			handler(s, i)
 		}
