@@ -1,61 +1,68 @@
 package commands
 
 import (
+	"fmt"
 	"log"
 
 	"github.com/bwmarrin/discordgo"
 )
 
-// Struct --> Defines what a modular command looks like
 type Command struct {
 	Definition *discordgo.ApplicationCommand
 	Handler    func(s *discordgo.Session, i *discordgo.InteractionCreate)
 }
 
-// Slice --> The central list of all commands
+// List of slash commands
 var List []Command
 
-// Add --> Function used by modules to "sign up" for the list
+// Map of button/component handlers (Initialized to prevent panic)
+var ComponentHandlers = make(map[string]func(s *discordgo.Session, i *discordgo.InteractionCreate))
+
 func Add(cmd Command) {
 	List = append(List, cmd)
+	fmt.Printf("📦 [Module] Loaded command: /%s\n", cmd.Definition.Name)
 }
 
-// Register --> Logic to send the list to Discord and setup the listener
-func Register(s *discordgo.Session, guildID string) {
+// AddComponentHandler allows modules to register button logic
+func AddComponentHandler(customID string, h func(s *discordgo.Session, i *discordgo.InteractionCreate)) {
+	ComponentHandlers[customID] = h
+}
 
-	// Loop --> Prepare definitions for Discord API
+func Register(s *discordgo.Session, guildID string) {
+	fmt.Println("📡 [Registry] Synchronizing with Discord...")
+
 	definitions := make([]*discordgo.ApplicationCommand, len(List))
 	for i, cmd := range List {
 		definitions[i] = cmd.Definition
 	}
 
-	// API --> Bulk overwrite commands for instant testing in your Guild
 	_, err := s.ApplicationCommandBulkOverwrite(s.State.User.ID, guildID, definitions)
 	if err != nil {
-		log.Printf("❌ Failed to register commands: %v", err)
+		log.Printf("❌ [Registry] Failed to register commands: %v", err)
+	} else {
+		fmt.Printf("✅ [Registry] Successfully synced %d command(s) to Discord.\n", len(List))
 	}
 
-	// Handler --> Point Discord to our Switchboard function (No more nested mess!)
 	s.AddHandler(handleInteraction)
 }
 
-// handleInteraction --> The "Switchboard" that routes clicks to the right command logic
 func handleInteraction(s *discordgo.Session, i *discordgo.InteractionCreate) {
-
-	// Filter --> Ignore anything that isn't a Slash Command (Early Return)
-	if i.Type != discordgo.InteractionApplicationCommand {
-		return
+	// 1. Handle Slash Commands
+	if i.Type == discordgo.InteractionApplicationCommand {
+		commandName := i.ApplicationCommandData().Name
+		for _, cmd := range List {
+			if cmd.Definition.Name == commandName {
+				cmd.Handler(s, i)
+				return
+			}
+		}
 	}
 
-	// Data --> Grab the name of the command the user actually typed
-	commandName := i.ApplicationCommandData().Name
-
-	// Loop --> Find the matching command in our List
-	for _, cmd := range List {
-		if cmd.Definition.Name == commandName {
-			// Logic --> Run the specific handler for this command
-			cmd.Handler(s, i)
-			return
+	// 2. Handle Button Clicks (Components)
+	if i.Type == discordgo.InteractionMessageComponent {
+		customID := i.MessageComponentData().CustomID
+		if handler, ok := ComponentHandlers[customID]; ok {
+			handler(s, i)
 		}
 	}
 }
