@@ -28,7 +28,7 @@ func init() {
 			// If latency is negative, it means the local clock is out of sync.
 			displacementStatus := "Normal"
 			if latency < 0 {
-				displacementStatus = "Non-Euclidean / Clock Drift"
+				displacementStatus = "Interaction Latency"
 				latency = int64(math.Abs(float64(latency))) // Turn negative to positive
 			}
 
