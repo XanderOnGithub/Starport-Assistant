@@ -14,7 +14,7 @@ import (
 
 func Start(s *discordgo.Session) {
 	ticker := time.NewTicker(time.Hour)
-	commands.LogToFile("🛰️ [Watcher] Background service initialized (4h interval).")
+	commands.LogToFile("🛰️ [Watcher] Background service initialized (1h interval).")
 
 	go func() {
 		for range ticker.C {
