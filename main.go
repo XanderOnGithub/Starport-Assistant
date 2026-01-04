@@ -35,8 +35,9 @@ func main() {
 		s.UpdateStatusComplex(discordgo.UpdateStatusData{
 			Activities: []*discordgo.Activity{
 				{
-					Name: "🛰️ Scanning for New Life...",
-					Type: discordgo.ActivityTypeWatching,
+					Name:  "custom",
+					Type:  discordgo.ActivityTypeCustom,
+					State: "🛰️ Scanning for New Life...",
 				},
 			},
 			Status: "online",
