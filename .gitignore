@@ -23,4 +23,9 @@ go.work.sum
 
 # env file
 .env
+
+# Bot Specific
 *.log
+data.json
+
+

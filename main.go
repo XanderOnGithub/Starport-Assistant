@@ -15,23 +15,51 @@ import (
 )
 
 func main() {
-	godotenv.Load()
+	// 1. Load Environment
+	err := godotenv.Load()
+	if err != nil {
+		log.Println("⚠️ No .env file found, relying on system environment variables")
+	}
+
 	guildID := os.Getenv("DISCORD_GUILD_ID")
+	token := os.Getenv("DISCORD_TOKEN")
 
-	session := bot.Boot(os.Getenv("DISCORD_TOKEN"), guildID)
+	// 2. Initialize the Session
+	session := bot.Boot(token, guildID)
 
-	// Trigger watcher on ready
+	// 3. Define the Ready Handler
 	session.AddHandler(func(s *discordgo.Session, r *discordgo.Ready) {
 		log.Println("🛰️ Starport Systems Online. Initializing Persistence & Watcher...")
+
+		// --- NEW: Set Presence/Status ---
+		s.UpdateStatusComplex(discordgo.UpdateStatusData{
+			Activities: []*discordgo.Activity{
+				{
+					Name: "🛰️ Scanning for New Life...",
+					Type: discordgo.ActivityTypeWatching,
+				},
+			},
+			Status: "online",
+		})
+
+		// Run cleanup now that we are actually connected
+		log.Println("🧹 Cleaning up old lobbies...")
+		lobby.CleanAllLobbies(s, guildID)
+
+		// Start the patch watcher
 		watcher.Start(s)
+
+		log.Println("✅ Starport Assistant: Systems Nominal.")
 	})
 
-	lobby.CleanAllLobbies(session, guildID)
-
+	// 4. Wait for Termination Signal
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM, os.Interrupt)
+
+	// This blocks the main thread so the bot stays alive
 	<-stop
 
-	log.Println("Shutting down Starport Assistant...")
+	// 5. Clean Shutdown
+	log.Println("📡 Shutting down Starport Assistant...")
 	session.Close()
 }
