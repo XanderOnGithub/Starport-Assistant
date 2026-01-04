@@ -13,7 +13,7 @@ import (
 )
 
 func Start(s *discordgo.Session) {
-	ticker := time.NewTicker(4 * time.Hour)
+	ticker := time.NewTicker(time.Hour)
 	commands.LogToFile("🛰️ [Watcher] Background service initialized (4h interval).")
 
 	go func() {
