@@ -35,12 +35,12 @@ func main() {
 		s.UpdateStatusComplex(discordgo.UpdateStatusData{
 			Activities: []*discordgo.Activity{
 				{
-					Name:  "custom",
-					Type:  discordgo.ActivityTypeCustom,
-					State: "🛰️ Scanning for New Life...",
+					Name: "with Space & Time",
+					Type: discordgo.ActivityTypeGame,
 				},
 			},
 			Status: "online",
+			AFK:    false,
 		})
 
 		// Run cleanup now that we are actually connected
