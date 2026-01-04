@@ -39,19 +39,41 @@ func init() {
 
 // Global Cleanup function to run on bot startup
 func CleanAllLobbies(s *discordgo.Session, guildID string) {
-	channels, _ := s.GuildChannels(guildID)
+	if s == nil {
+		return
+	}
+
+	channels, err := s.GuildChannels(guildID)
+	if err != nil {
+		fmt.Printf("⚠️ Could not fetch channels: %v\n", err)
+		return
+	}
+
 	selfID := ""
+	// SAFETY PATCH: Check if state is nil before accessing User
 	if s.State != nil && s.State.User != nil {
 		selfID = s.State.User.ID
+	} else {
+		// Fallback: Fetch bot info from API if State isn't cached yet
+		user, err := s.User("@me")
+		if err == nil {
+			selfID = user.ID
+		}
 	}
 
 	for _, ch := range channels {
 		if ch.Type != discordgo.ChannelTypeGuildText {
 			continue
 		}
-		msgs, _ := s.ChannelMessages(ch.ID, 20, "", "", "")
+
+		msgs, err := s.ChannelMessages(ch.ID, 20, "", "", "")
+		if err != nil {
+			continue
+		}
+
 		for _, m := range msgs {
-			if m.Author.Bot && (selfID == "" || m.Author.ID == selfID) && len(m.Embeds) > 0 {
+			// Check if message author exists before checking ID
+			if m.Author != nil && m.Author.Bot && (selfID == "" || m.Author.ID == selfID) && len(m.Embeds) > 0 {
 				if m.Embeds[0].Footer != nil && strings.Contains(m.Embeds[0].Footer.Text, "Starport Assistant") {
 					s.ChannelMessageDelete(ch.ID, m.ID)
 				}
