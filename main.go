@@ -39,8 +39,9 @@ func main() {
 		if err := s.UpdateStatusComplex(discordgo.UpdateStatusData{
 			Activities: []*discordgo.Activity{
 				{
-					Name: "with Space & Time",
-					Type: discordgo.ActivityTypeGame,
+					Name:  "custom",
+					Type:  discordgo.ActivityTypeCustom,
+					State: "🛰️ Scanning for New Life...",
 				},
 			},
 			Status: "online",
